@@ -29,10 +29,8 @@ export class ReservaController {
     try {
       const usuarioId = String(req.params.id);
       const reservas = await this.reservaService.findByUsuario(usuarioId);
-      if (!reservas || reservas.length === 0) {
-        throw new NotFoundError('No se encontraron reservas para este usuario');
-      }
-      res.json(reservas);
+      // Return empty array if no reservations found instead of throwing error
+      res.json(reservas || []);
     } catch (error) {
       next(error);
     }
