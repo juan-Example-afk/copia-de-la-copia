@@ -14,15 +14,26 @@ export class Notificacion {
   }
 
   marcarComoLeida() {
-    if (this.leida) {
-      throw new Error("La notificación ya está marcada como leída");
+    if (!this.leida) {
+      this.leida = true;
+      this.fechaLeida = new Date();
     }
-    
-    this.leida = true;
-    this.fechaLeida = new Date();
+    return this;
   }
 
   pertenece(usuario) {
     return this.usuario.email === usuario.email;
+  }
+
+  toDTO() {
+    return {
+      id: this.id,
+      mensaje: this.mensaje,
+      usuario: this.usuario.email,
+      reserva: this.reserva?.id,
+      fechaCreacion: this.fechaCreacion,
+      leida: this.leida,
+      fechaLeida: this.fechaLeida
+    };
   }
 }

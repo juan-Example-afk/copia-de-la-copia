@@ -1,29 +1,37 @@
 export class NotificacionRepository {
   constructor() {
     this.notificaciones = [];
-    this.nextId = 1; // opcional, si quieres asignar ids
+    this.nextId = 1;
   }
 
   async save(notificacion) {
     if (!notificacion.id) {
       notificacion.id = this.nextId++;
     }
-    this.notificaciones.push(notificacion);
+    const index = this.notificaciones.findIndex(n => n.id === notificacion.id);
+    if (index !== -1) {
+      this.notificaciones[index] = notificacion;
+    } else {
+      this.notificaciones.push(notificacion);
+    }
     return notificacion;
   }
 
-  async findByUsuario(usuario) {
-    return this.notificaciones.filter(n => n.usuario.email === usuario.email);
+  async findByUsuario(usuarioEmail) {
+    return this.notificaciones.filter(n => n.usuario.email === usuarioEmail);
   }
 
-  async findNoLeidas(usuario) {
-    const todas = await this.findByUsuario(usuario);
-    return todas.filter(n => !n.leida);
+  async findNoLeidas(usuarioEmail) {
+    return this.notificaciones.filter(n => n.usuario.email === usuarioEmail && !n.leida);
   }
 
-  async marcarTodasComoLeidas(usuario) {
-    const noLeidas = await this.findNoLeidas(usuario);
-    noLeidas.forEach(n => n.marcarComoLeida());
+  async marcarTodasComoLeidas(usuarioEmail) {
+    const noLeidas = await this.findNoLeidas(usuarioEmail);
+    for (const notificacion of noLeidas) {
+      notificacion.marcarComoLeida();
+      await this.save(notificacion);
+    }
+    return noLeidas;
   }
 
   async findAll() {
@@ -31,6 +39,7 @@ export class NotificacionRepository {
   }
 
   async findById(id) {
-    return this.notificaciones.find(n => n.id === id);
+    const numId = typeof id === 'string' ? parseInt(id, 10) : id;
+    return this.notificaciones.find(n => n.id === numId);
   }
 }

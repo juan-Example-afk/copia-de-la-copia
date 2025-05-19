@@ -8,52 +8,52 @@ export class NotificacionService {
 
   async findAll() {
     const notificaciones = await this.repository.findAll();
-    if (!Array.isArray(notificaciones)) {
-      throw new Error("El repositorio no devolvió una lista de notificaciones");
-    }
-    return notificaciones.map(this.toDTO);
+    return notificaciones.map(n => n.toDTO());
   }
 
-  async findLeidasByUsuario(idUsuario) {
-    if (!idUsuario || isNaN(idUsuario)) {
-      throw new ValidationError("El ID de usuario proporcionado no es válido");
+  async findByUsuario(usuarioId) {
+    if (!usuarioId) {
+      throw new ValidationError("El ID de usuario es requerido");
     }
-    const allNotificaciones = await this.repository.findByUsuario(idUsuario);
-    const leidas = allNotificaciones.filter(n => n.leida);
-    return leidas.map(this.toDTO);
+    const notificaciones = await this.repository.findByUsuario(usuarioId);
+    return notificaciones.map(n => n.toDTO());
   }
 
-  async findNoLeidasByUsuario(idUsuario) {
-    if (!idUsuario || isNaN(idUsuario)) {
-      throw new ValidationError("El ID de usuario proporcionado no es válido");
+  async findNoLeidas(usuarioId) {
+    if (!usuarioId) {
+      throw new ValidationError("El ID de usuario es requerido");
     }
-    const allNotificaciones = await this.repository.findByUsuario(idUsuario);
-    const noLeidas = allNotificaciones.filter(n => !n.leida);
-    return noLeidas.map(this.toDTO);
+    const notificaciones = await this.repository.findNoLeidas(usuarioId);
+    return notificaciones.map(n => n.toDTO());
   }
 
   async marcarComoLeida(id) {
-    if (!id || isNaN(id)) {
-      throw new ValidationError("El ID de notificación proporcionado no es válido");
+    if (!id) {
+      throw new ValidationError("El ID de notificación es requerido");
     }
 
     const notificacion = await this.repository.findById(id);
     if (!notificacion) {
-      throw new NotFoundError(`No se encontró notificación con ID ${id}`);
+      throw new NotFoundError(`No se encontró la notificación con ID ${id}`);
     }
 
     notificacion.marcarComoLeida();
-    await this.repository.save(notificacion); // asumiendo que hay un método save para persistir cambios
-    return this.toDTO(notificacion);
+    await this.repository.save(notificacion);
+    return notificacion.toDTO();
   }
 
-  toDTO(notificacion) {
-    return {
-      id: notificacion.id,
-      mensaje: notificacion.mensaje,
-      usuario: notificacion.usuario?.id ?? null,
-      leida: notificacion.leida,
-      fechaLeida: notificacion.fechaLeida,
-    };
+  async marcarTodasComoLeidas(usuarioId) {
+    if (!usuarioId) {
+      throw new ValidationError("El ID de usuario es requerido");
+    }
+    
+    const notificaciones = await this.repository.marcarTodasComoLeidas(usuarioId);
+    return notificaciones.map(n => n.toDTO());
+  }
+
+  async crear(mensaje, usuario, reserva) {
+    const notificacion = new Notificacion(mensaje, usuario, reserva);
+    await this.repository.save(notificacion);
+    return notificacion.toDTO();
   }
 }

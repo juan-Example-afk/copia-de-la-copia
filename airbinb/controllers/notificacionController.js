@@ -37,8 +37,8 @@ export class NotificacionController {
   async marcarComoLeida(req, res, next) {
     try {
       const id = Number(req.params.id);
-      await this.notificacionService.marcarComoLeida(id);
-      res.status(200).json({ mensaje: "Notificación marcada como leída" });
+      const notificacion = await this.notificacionService.marcarComoLeida(id);
+      res.json(notificacion);
     } catch (error) {
       next(error);
     }
@@ -47,8 +47,8 @@ export class NotificacionController {
   async marcarTodasComoLeidas(req, res, next) {
     try {
       const usuarioId = req.params.id;
-      await this.notificacionService.marcarTodasComoLeidas(usuarioId);
-      res.status(200).json({ mensaje: "Todas las notificaciones marcadas como leídas" });
+      const notificaciones = await this.notificacionService.marcarTodasComoLeidas(usuarioId);
+      res.json(notificaciones);
     } catch (error) {
       next(error);
     }
