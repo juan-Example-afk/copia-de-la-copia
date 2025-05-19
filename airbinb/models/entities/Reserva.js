@@ -17,6 +17,7 @@ export class Reserva {
     this.estado = EstadoReserva.PENDIENTE;
     this.motivoCancelacion = null;
     this.canceladaPor = null;
+    this.cambiosEstado = [];
   }
 
   actualizarEstado(nuevoEstado, motivo, usuario) {
@@ -26,13 +27,14 @@ export class Reserva {
     
     const cambio = new CambioEstadoReserva(nuevoEstado, this, motivo, usuario);
     this.estado = nuevoEstado;
+    this.cambiosEstado.push(cambio);
     
     if (nuevoEstado === EstadoReserva.CANCELADA) {
       this.motivoCancelacion = motivo;
       this.canceladaPor = usuario;
     }
     
-    return cambio;
+    return this;
   }
 
   estaVigente() {
