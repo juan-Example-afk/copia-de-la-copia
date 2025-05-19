@@ -1,0 +1,27 @@
+{
+  "name": "tp-cuatrimestral-jueves-manana-ju-ma-grupo-01",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node --watch ./index.js",
+    "start": "node ./index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ddso-utn/tp-cuatrimestral-jueves-manana-ju-ma-grupo-01.git"
+  },
+  "author": "Grupo 1",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ddso-utn/tp-cuatrimestral-jueves-manana-ju-ma-grupo-01/issues"
+  },
+  "homepage": "https://github.com/ddso-utn/tp-cuatrimestral-jueves-manana-ju-ma-grupo-01#readme",
+  "keywords": [],
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0"
+  }
+}
