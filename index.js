@@ -39,7 +39,7 @@ const notificacionRepo = new NotificacionRepository();
 const cambioEstadoRepo = new CambioEstadoReservaRepository();
 
 const alojamientoService = new AlojamientoService(alojamientoRepo);
-const reservaService = new ReservaService(reservaRepo,alojamientoRepo,usuarioRepo);
+const reservaService = new ReservaService(reservaRepo, alojamientoRepo, usuarioRepo, notificacionRepo);
 const usuarioService = new UsuarioService(usuarioRepo);
 const notificacionService = new NotificacionService(notificacionRepo);
 const cambioEstadoService = new CambioEstadoReservaService(cambioEstadoRepo);

@@ -1,22 +1,27 @@
 import { NotFoundError, ValidationError } from '../errors/appError.js';
+import { Reserva } from '../models/entities/Reserva.js';
+import { RangoDeFechas } from '../models/entities/RangoDeFechas.js';
 
 export class ReservaService {
-  constructor(reservaRepository, alojamientoRepository, usuarioRepository) {
+  constructor(reservaRepository, alojamientoRepository, usuarioRepository, notificacionRepository) {
     this.reservaRepository = reservaRepository;
     this.alojamientoRepository = alojamientoRepository;
     this.usuarioRepository = usuarioRepository;
+    this.notificacionRepository = notificacionRepository;
   }
 
   async findAll() {
-    return await this.reservaRepository.findAll();
+    const reservas = await this.reservaRepository.findAll();
+    return reservas.map(this.toDTO);
   }
 
   async findByUsuario(usuarioId) {
-    const usuario = await this.usuarioRepository.findById(usuarioId);
+    const usuario = await this.usuarioRepository.findByEmail(usuarioId);
     if (!usuario) {
       throw new NotFoundError('Usuario no encontrado');
     }
-    return await this.reservaRepository.findByUsuarioId(usuario.id);
+    const reservas = await this.reservaRepository.findByUsuarioId(usuarioId);
+    return reservas.map(this.toDTO);
   }
 
   async findById(id) {
@@ -24,7 +29,7 @@ export class ReservaService {
     if (!reserva) {
       throw new NotFoundError('Reserva no encontrada');
     }
-    return reserva;
+    return this.toDTO(reserva);
   }
 
   async create(data) {
@@ -35,25 +40,35 @@ export class ReservaService {
       throw new NotFoundError('Alojamiento no encontrado');
     }
 
-    const disponible = await this.reservaRepository.estaDisponible(idAlojamiento, fechaInicio, fechaFin);
-    if (!disponible) {
-      throw new ValidationError('El alojamiento no está disponible en esas fechas');
-    }
-
-    const huesped = await this.usuarioRepository.findById(huespedReservador);
+    const huesped = await this.usuarioRepository.findByEmail(huespedReservador);
     if (!huesped) {
       throw new NotFoundError('Usuario no encontrado');
     }
 
-    const reserva = await this.reservaRepository.create({
-      huespedReservador,
-      cantHuespedes,
-      fechaInicio,
-      fechaFin,
-      idAlojamiento
-    });
+    const rangoFechas = new RangoDeFechas(new Date(fechaInicio), new Date(fechaFin));
+    
+    if (!alojamiento.estasDisponibleEn(rangoFechas)) {
+      throw new ValidationError('El alojamiento no está disponible en esas fechas');
+    }
 
-    return this.toDTO(reserva);
+    const reserva = new Reserva(
+      huesped,
+      cantHuespedes,
+      rangoFechas,
+      idAlojamiento
+    );
+
+    const reservaGuardada = await this.reservaRepository.create(reserva);
+    
+    // Notificar al anfitrión
+    const notificacion = {
+      mensaje: `Nueva reserva solicitada por ${huesped.nombre} para ${alojamiento.nombre}`,
+      usuario: alojamiento.anfitrion,
+      reserva: reservaGuardada
+    };
+    await this.notificacionRepository.save(notificacion);
+
+    return this.toDTO(reservaGuardada);
   }
 
   async actualizarEstado(id, nuevoEstado, motivo, usuarioId) {
@@ -62,67 +77,43 @@ export class ReservaService {
       throw new NotFoundError('Reserva no encontrada');
     }
 
-    if (nuevoEstado === 'cancelada' && new Date(reserva.fechaInicio) <= new Date()) {
-      throw new ValidationError('No se puede cancelar una reserva ya iniciada o pasada');
-    }
-
-    const usuario = await this.usuarioRepository.findById(usuarioId);
+    const usuario = await this.usuarioRepository.findByEmail(usuarioId);
     if (!usuario) {
-      throw new NotFoundError('Usuario no encontrado para registrar el cambio de estado');
+      throw new NotFoundError('Usuario no encontrado');
     }
 
-    const actualizada = await this.reservaRepository.actualizarEstado(id, nuevoEstado, motivo, usuario);
+    const actualizada = await reserva.actualizarEstado(nuevoEstado, motivo, usuario);
+    await this.reservaRepository.save(reserva);
+
+    // Notificar al huésped del cambio
+    const notificacion = {
+      mensaje: `Tu reserva ha cambiado a estado: ${nuevoEstado}${motivo ? ` - Motivo: ${motivo}` : ''}`,
+      usuario: reserva.huespedReservador,
+      reserva: reserva
+    };
+    await this.notificacionRepository.save(notificacion);
+
     return this.toDTO(actualizada);
-  }
-
-  async modificarReserva(id, cambios) {
-    const reserva = await this.reservaRepository.findById(id);
-    if (!reserva) {
-      throw new NotFoundError('Reserva no encontrada');
-    }
-
-    // Verificar disponibilidad si cambian las fechas
-    const nuevaFechaInicio = cambios.fechaInicio || reserva.fechaInicio;
-    const nuevaFechaFin = cambios.fechaFin || reserva.fechaFin;
-
-    if (cambios.fechaInicio || cambios.fechaFin) {
-      const disponible = await this.reservaRepository.estaDisponible(
-        reserva.idAlojamiento,
-        nuevaFechaInicio,
-        nuevaFechaFin,
-        id // excluir la reserva actual
-      );
-
-      if (!disponible) {
-        throw new ValidationError('El alojamiento no está disponible en las nuevas fechas');
-      }
-    }
-
-    const modificada = await this.reservaRepository.modificarReserva(id, cambios);
-    return this.toDTO(modificada);
-  }
-
-  async cancelarReserva(id) {
-    const reserva = await this.reservaRepository.findById(id);
-    if (!reserva) {
-      throw new NotFoundError('Reserva no encontrada');
-    }
-
-    if (new Date(reserva.fechaInicio) <= new Date()) {
-      throw new ValidationError('No se puede cancelar una reserva ya iniciada o pasada');
-    }
-
-    const cancelada = await this.reservaRepository.actualizarEstado(id, 'cancelada', 'Cancelación solicitada', null);
-    return this.toDTO(cancelada);
   }
 
   toDTO(reserva) {
     return {
       id: reserva.id,
-      huesped: reserva.huespedReservador?.nombre ?? reserva.huespedReservador,
+      huespedReservador: {
+        email: reserva.huespedReservador.email,
+        nombre: reserva.huespedReservador.nombre
+      },
       alojamientoId: reserva.idAlojamiento,
-      fechas: reserva.rangoFechas?.toString?.() ?? `${reserva.fechaInicio} - ${reserva.fechaFin}`,
+      cantHuespedes: reserva.cantHuespedes,
+      fechaInicio: reserva.rangoFechas.fechaInicio,
+      fechaFin: reserva.rangoFechas.fechaFin,
       estado: reserva.estado,
+      fechaAlta: reserva.fechaAlta,
+      motivoCancelacion: reserva.motivoCancelacion,
+      canceladaPor: reserva.canceladaPor ? {
+        email: reserva.canceladaPor.email,
+        nombre: reserva.canceladaPor.nombre
+      } : null
     };
   }
 }
